@@ -1,8 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
-import { BarcodeScanningResult, useBarcodeScanner } from 'expo-barcode-scanner';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Alert, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
-import { PackageStorage } from '@/lib/storage/package-storage';
 
 interface BarcodeScannerProps {
   onBarcodeScanned?: (barcode: string) => void;
@@ -10,155 +8,57 @@ interface BarcodeScannerProps {
 }
 
 /**
- * Barcode/QR code scanner component for package identification
+ * Manual barcode entry component for package identification
+ * (expo-barcode-scanner removed due to SDK incompatibility)
  */
 export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({
   onBarcodeScanned,
   autoNavigate = false,
 }) => {
   const router = useRouter();
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [scannedCode, setScannedCode] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [barcode, setBarcode] = useState('');
 
-  const { scanned, data } = useBarcodeScanner({
-    settings: {
-      isHighDensityTracking: true,
-      barcodeTypes: ['qr', 'ean13', 'ean8', 'code128', 'code39'],
-    },
-  });
-
-  /**
-   * Request camera permissions
-   */
-  useEffect(() => {
-    (async () => {
-      const { status } = await useBarcodeScanner.requestPermissionsAsync();
-      setHasPermission(status === 'granted');
-    })();
-  }, []);
-
-  /**
-   * Handle barcode scan
-   */
-  useEffect(() => {
-    if (scanned && data && !isProcessing) {
-      handleBarcodeScan(data);
+  const handleSubmit = () => {
+    if (!barcode.trim()) {
+      Alert.alert('خطا', 'لطفاً کد بارکد را وارد کنید');
+      return;
     }
-  }, [scanned, data]);
 
-  /**
-   * Process scanned barcode
-   */
-  const handleBarcodeScan = async (barcodeData: BarcodeScanningResult) => {
-    try {
-      setIsProcessing(true);
-      const barcode = barcodeData.value || '';
+    if (onBarcodeScanned) {
+      onBarcodeScanned(barcode.trim());
+    }
 
-      if (!barcode) {
-        Alert.alert('خطا', 'کد بارکد خالی است');
-        setIsProcessing(false);
-        return;
-      }
-
-      setScannedCode(barcode);
-
-      // Check if package exists
-      const pkg = await PackageStorage.getPackage(barcode);
-
-      if (pkg) {
-        // Call callback if provided
-        if (onBarcodeScanned) {
-          onBarcodeScanned(barcode);
-        }
-
-        // Show package info
-        const orderText = pkg.order ? `#${pkg.order} - ` : '';
-        Alert.alert(
-          'بسته پیدا شد',
-          `${orderText}${barcode}\nآدرس: ${pkg.address}\nوضعیت: ${pkg.status === 'delivered' ? 'تحویل شده' : 'در انتظار'}`,
-          [
-            {
-              text: 'بستن',
-              onPress: () => {
-                setScannedCode(null);
-                setIsProcessing(false);
-              },
-            },
-            {
-              text: 'جزئیات',
-              onPress: () => {
-                if (autoNavigate) {
-                  router.push({
-                    pathname: '/package-details',
-                    params: { trackingNumber: barcode },
-                  });
-                }
-              },
-            },
-          ]
-        );
-      } else {
-        Alert.alert(
-          'بسته‌ای پیدا نشد',
-          `بسته‌ای با کد "${barcode}" در سیستم ثبت نشده است`,
-          [
-            {
-              text: 'بستن',
-              onPress: () => {
-                setScannedCode(null);
-                setIsProcessing(false);
-              },
-            },
-          ]
-        );
-      }
-    } catch (error) {
-      console.error('Error processing barcode:', error);
-      Alert.alert('خطا', 'خطایی در پردازش بارکد رخ داد');
-      setIsProcessing(false);
+    if (autoNavigate) {
+      router.push({
+        pathname: '/package-details',
+        params: { trackingNumber: barcode.trim() },
+      });
     }
   };
 
-  if (hasPermission === null) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.text}>درخواست دسترسی دوربین...</Text>
-      </View>
-    );
-  }
-
-  if (hasPermission === false) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.text}>دسترسی به دوربین رد شد</Text>
-        <Text style={styles.subText}>برای استفاده از اسکنر، باید دسترسی دوربین را فعال کنید</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <View style={styles.scannerContainer}>
-        {/* Scanner would be rendered here by expo-barcode-scanner */}
-        <View style={styles.scannerPlaceholder}>
-          <Text style={styles.scannerText}>دوربین فعال است</Text>
-          {scannedCode && (
-            <Text style={styles.scannedText}>آخرین کد: {scannedCode}</Text>
-          )}
-        </View>
+      <View style={styles.inputContainer}>
+        <Text style={styles.title}>ورود کد بارکد</Text>
+        <Text style={styles.subtitle}>کد بارکد یا شماره مرسوله را وارد کنید</Text>
+        
+        <TextInput
+          style={styles.input}
+          value={barcode}
+          onChangeText={setBarcode}
+          placeholder="کد بارکد..."
+          placeholderTextColor="#999"
+          autoFocus
+          returnKeyType="done"
+          onSubmitEditing={handleSubmit}
+        />
+
+        <Pressable style={styles.submitButton} onPress={handleSubmit}>
+          <Text style={styles.submitButtonText}>تأیید</Text>
+        </Pressable>
       </View>
 
-      <View style={styles.instructionsContainer}>
-        <Text style={styles.instructionsText}>
-          دوربین را به سمت بارکد یا کد QR بسته‌ها نشان دهید
-        </Text>
-      </View>
-
-      <Pressable
-        style={styles.closeButton}
-        onPress={() => router.back()}
-      >
+      <Pressable style={styles.closeButton} onPress={() => router.back()}>
         <Text style={styles.closeButtonText}>بستن</Text>
       </Pressable>
     </View>
@@ -171,60 +71,55 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
-  text: {
-    fontSize: 18,
+  inputContainer: {
+    width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 20,
     color: '#fff',
-    textAlign: 'center',
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
-  subText: {
+  subtitle: {
     fontSize: 14,
     color: '#ccc',
+    marginBottom: 20,
     textAlign: 'center',
-    marginTop: 10,
   },
-  scannerContainer: {
-    flex: 1,
+  input: {
     width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scannerPlaceholder: {
-    width: '80%',
-    height: '60%',
-    borderWidth: 2,
-    borderColor: '#fff',
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  scannerText: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 14,
     fontSize: 16,
-    color: '#fff',
-    marginBottom: 10,
-  },
-  scannedText: {
-    fontSize: 14,
-    color: '#4CAF50',
-    marginTop: 10,
-  },
-  instructionsContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-  },
-  instructionsText: {
-    fontSize: 14,
-    color: '#fff',
     textAlign: 'center',
+    marginBottom: 16,
+    color: '#000',
+  },
+  submitButton: {
+    width: '100%',
+    paddingVertical: 14,
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   closeButton: {
     paddingVertical: 12,
     paddingHorizontal: 30,
     backgroundColor: '#2196F3',
     borderRadius: 8,
-    marginBottom: 20,
+    marginTop: 20,
   },
   closeButtonText: {
     color: '#fff',
