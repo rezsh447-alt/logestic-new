@@ -32,8 +32,9 @@ export default function LoginScreen() {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       await checkAccount(phoneNumber);
       setStep("otp");
-    } catch (err) {
-      setLocalError(error || "خطا در ارسال کد تایید");
+    } catch (err: any) {
+      const msg = err?.message || "خطا در ارسال کد تایید";
+      setLocalError(msg);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
@@ -42,8 +43,8 @@ export default function LoginScreen() {
     setLocalError(null);
 
     // Validate OTP
-    if (!otp || otp.length !== 6) {
-      setLocalError("لطفا کد تایید ۶ رقمی وارد کنید");
+    if (!otp || otp.length < 4 || otp.length > 6) {
+      setLocalError("لطفا کد تایید را وارد کنید");
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -52,8 +53,9 @@ export default function LoginScreen() {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       await login(phoneNumber, otp);
       router.replace("/(tabs)" as RelativePathString);
-    } catch (err) {
-      setLocalError(error || "خطا در ورود");
+    } catch (err: any) {
+      const msg = err?.message || "خطا در ورود";
+      setLocalError(msg);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
@@ -118,7 +120,7 @@ export default function LoginScreen() {
                 <View className="flex-row gap-3">
                   <IconSymbol name="info.circle.fill" size={20} color={colors.primary} />
                   <Text className="flex-1 text-xs text-muted leading-relaxed">
-                    کد تایید ۶ رقمی برای شماره تماس شما ارسال خواهد شد
+                    کد تایید برای شماره تماس شما ارسال خواهد شد
                   </Text>
                 </View>
               </View>
@@ -157,7 +159,7 @@ export default function LoginScreen() {
                 </Pressable>
 
                 <Text className="text-2xl font-bold text-foreground mb-2">کد تایید</Text>
-                <Text className="text-muted">کد ۶ رقمی ارسال شده را وارد کنید</Text>
+                <Text className="text-muted">کد ارسال شده را وارد کنید</Text>
               </View>
 
               {/* OTP Input */}
@@ -179,6 +181,7 @@ export default function LoginScreen() {
                     onChangeText={setOtp}
                     keyboardType="number-pad"
                     maxLength={6}
+                    autoComplete="sms-otp"
                     editable={!isLoading}
                     className="flex-1 ml-3 text-foreground text-base tracking-widest"
                     style={{ color: colors.foreground }}
@@ -200,11 +203,11 @@ export default function LoginScreen() {
               {/* Submit Button */}
               <Pressable
                 onPress={handleOtpSubmit}
-                disabled={isLoading || otp.length !== 6}
+                disabled={isLoading || otp.length < 4 || otp.length > 6}
                 style={({ pressed }) => [
                   {
                     backgroundColor: colors.primary,
-                    opacity: pressed && !isLoading ? 0.8 : isLoading || otp.length !== 6 ? 0.6 : 1,
+                    opacity: pressed && !isLoading ? 0.8 : isLoading || otp.length < 4 || otp.length > 6 ? 0.6 : 1,
                   },
                 ]}
                 className="py-3 rounded-lg items-center justify-center"
