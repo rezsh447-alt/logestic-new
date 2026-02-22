@@ -43,6 +43,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="packages"
+        options={{
+          title: "بسته‌ها",
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="shippingbox.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="tracking"
         options={{
           title: "ردیابی",
