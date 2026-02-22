@@ -3,9 +3,11 @@ import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useState } from "react";
+import { useAuthContext } from "@/lib/auth-provider";
 
 export default function ProfileScreen() {
   const colors = useColors();
+  const { driver, logout } = useAuthContext();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   return (
@@ -20,22 +22,22 @@ export default function ProfileScreen() {
             >
               <IconSymbol name="person.fill" size={40} color={colors.primary} />
             </View>
-            <Text className="text-white text-2xl font-bold">محمد علی رضایی</Text>
-            <Text className="text-blue-100 text-sm mt-1">راننده حرفه‌ای</Text>
+            <Text className="text-white text-2xl font-bold">{driver?.firstName} {driver?.lastName}</Text>
+            <Text className="text-blue-100 text-sm mt-1">راننده فوروارد</Text>
           </View>
 
           <View className="flex-row gap-3">
             <View className="flex-1 bg-blue-600 rounded-lg py-2 items-center">
               <Text className="text-white text-xs text-muted mb-1">امتیاز</Text>
-              <Text className="text-white text-lg font-bold">۴.۸</Text>
+              <Text className="text-white text-lg font-bold">{driver?.rating || '۵.۰'}</Text>
             </View>
             <View className="flex-1 bg-blue-600 rounded-lg py-2 items-center">
               <Text className="text-white text-xs text-muted mb-1">سفارش‌ها</Text>
-              <Text className="text-white text-lg font-bold">۱۲۳</Text>
+              <Text className="text-white text-lg font-bold">{driver?.totalDeliveries || '۰'}</Text>
             </View>
             <View className="flex-1 bg-blue-600 rounded-lg py-2 items-center">
               <Text className="text-white text-xs text-muted mb-1">عضویت</Text>
-              <Text className="text-white text-lg font-bold">۸ ماه</Text>
+              <Text className="text-white text-lg font-bold">۱ ماه</Text>
             </View>
           </View>
         </View>
@@ -58,7 +60,7 @@ export default function ProfileScreen() {
                   <IconSymbol name="phone.fill" size={16} color={colors.primary} />
                   <Text className="text-sm text-muted">شماره تماس</Text>
                 </View>
-                <Text className="text-sm font-semibold text-foreground">۰۹۱۲۳۴۵۶۷۸۹</Text>
+                <Text className="text-sm font-semibold text-foreground">{driver?.phoneNumber}</Text>
               </View>
 
               <View className="flex-row items-center justify-between pb-3 border-b" style={{ borderBottomColor: colors.border }}>
@@ -66,7 +68,7 @@ export default function ProfileScreen() {
                   <IconSymbol name="envelope.fill" size={16} color={colors.primary} />
                   <Text className="text-sm text-muted">ایمیل</Text>
                 </View>
-                <Text className="text-sm font-semibold text-foreground">user@forward.ir</Text>
+                <Text className="text-sm font-semibold text-foreground">{driver?.email || 'ثبت نشده'}</Text>
               </View>
 
               <View className="flex-row items-center justify-between">
@@ -234,6 +236,7 @@ export default function ProfileScreen() {
 
           {/* Logout */}
           <Pressable
+            onPress={logout}
             style={({ pressed }) => [
               {
                 backgroundColor: colors.error,

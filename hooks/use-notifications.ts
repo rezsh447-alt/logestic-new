@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Notification, NotificationType } from '@/lib/types';
+import { ForwardApi } from '@/lib/api/forward-api';
 
 interface NotificationState {
   notifications: Notification[];
@@ -101,37 +102,36 @@ export function useNotifications(driverId: string) {
     return state.notifications.filter((n) => !n.read);
   }, [state.notifications]);
 
-  // Simulate receiving notifications
-  useEffect(() => {
-    const mockNotifications: Array<{
-      type: NotificationType;
-      title: string;
-      message: string;
-    }> = [
-      {
-        type: 'order_assigned',
-        title: 'سفارش جدید',
-        message: 'سفارش جدیدی برای شما تخصیص داده شد',
-      },
-      {
-        type: 'delivery_completed',
-        title: 'تحویل موفق',
-        message: 'تحویل شما با موفقیت ثبت شد',
-      },
-      {
-        type: 'payment_received',
-        title: 'پرداخت دریافت شد',
-        message: 'درآمد امروز شما واریز شد',
-      },
-    ];
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setState((prev) => ({ ...prev, isLoading: true }));
+      const response = await ForwardApi.getNotifications();
+      const mappedNotifications: Notification[] = (response.items || []).map((item: any) => ({
+        id: item.id.toString(),
+        driverId,
+        type: (item.type || 'system') as NotificationType,
+        title: item.title || 'اعلان جدید',
+        message: item.body || item.message || '',
+        data: item.data,
+        read: item.isRead || false,
+        timestamp: item.createdAt || new Date().toISOString(),
+      }));
 
-    // Add mock notifications on mount
-    mockNotifications.forEach((notif, index) => {
-      setTimeout(() => {
-        addNotification(notif.type, notif.title, notif.message);
-      }, index * 2000);
-    });
-  }, []);
+      setState((prev) => ({
+        ...prev,
+        notifications: mappedNotifications,
+        unreadCount: mappedNotifications.filter((n) => !n.read).length,
+        isLoading: false,
+      }));
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      setState((prev) => ({ ...prev, isLoading: false, error: 'خطا در دریافت اعلان‌ها' }));
+    }
+  }, [driverId]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   return {
     ...state,

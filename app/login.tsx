@@ -11,7 +11,7 @@ import type { RelativePathString } from "expo-router";
 export default function LoginScreen() {
   const colors = useColors();
   const router = useRouter();
-  const { login, isLoading, error } = useAuthContext();
+  const { checkAccount, login, isLoading, error } = useAuthContext();
 
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -28,9 +28,14 @@ export default function LoginScreen() {
       return;
     }
 
-    // Move to OTP step
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setStep("otp");
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await checkAccount(phoneNumber);
+      setStep("otp");
+    } catch (err) {
+      setLocalError(error || "خطا در ارسال کد تایید");
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
   };
 
   const handleOtpSubmit = async () => {

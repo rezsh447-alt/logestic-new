@@ -2,8 +2,12 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Driver, DriverProfile } from '@/lib/types';
 import { STORAGE_KEYS } from '@/constants/app-constants';
+import { AuthService } from '@/lib/api/auth-service';
+import { ForwardApi } from '@/lib/api/forward-api';
 
 interface AuthContextType {
+  smsCodeKey: string | null;
+  checkAccount: (phoneNumber: string) => Promise<void>;
   driver: DriverProfile | null;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -20,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [driver, setDriver] = useState<DriverProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [smsCodeKey, setSmsCodeKey] = useState<string | null>(null);
 
   // Initialize auth state on app load
   useEffect(() => {
@@ -44,45 +49,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initializeAuth();
   }, []);
 
+  const checkAccount = async (phoneNumber: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await AuthService.checkAccount(phoneNumber);
+      setSmsCodeKey(response.smsCodeKey);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'خطا در بررسی حساب';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const login = async (phoneNumber: string, otp: string) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Simulate API call
-      // In production, this would call your backend API
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Mock driver data
-      const mockDriver: DriverProfile = {
-        id: '1',
-        phoneNumber,
-        firstName: 'محمد',
-        lastName: 'علی',
-        email: 'driver@forward.ir',
-        rating: 4.8,
-        totalDeliveries: 123,
-        joinedDate: '2024-01-15',
+      const { user } = await AuthService.login(phoneNumber, otp);
+      
+      // Map real user info to DriverProfile if needed
+      const driverProfile: DriverProfile = {
+        id: user.id || '1',
+        phoneNumber: user.mobile || phoneNumber,
+        firstName: user.name || '',
+        lastName: user.family || '',
+        email: '',
+        rating: 5.0,
+        totalDeliveries: 0,
+        joinedDate: new Date().toISOString(),
         isActive: true,
         biometricEnabled: false,
-        profileImage: undefined,
         vehicleInfo: {
           id: '1',
-          plateNumber: 'ب۱۲۳ب۱۲',
+          plateNumber: '',
           vehicleType: 'van',
-          capacity: 500,
-          color: 'سفید',
-          insuranceExpiry: '2025-12-31',
-          registrationExpiry: '2025-12-31',
+          capacity: 0,
+          color: '',
+          insuranceExpiry: '',
+          registrationExpiry: '',
         },
         bankAccount: {
-          accountHolder: 'محمد علی',
-          accountNumber: '1234567890',
-          bankName: 'بانک ملی',
+          accountHolder: `${user.name} ${user.family}`,
+          accountNumber: '',
+          bankName: '',
         },
         documents: {
-          licenseNumber: 'L123456789',
-          licenseExpiry: '2026-12-31',
+          licenseNumber: '',
+          licenseExpiry: '',
           licenseImage: '',
           insuranceImage: '',
           registrationImage: '',
@@ -90,11 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      // Store token and driver data
-      await AsyncStorage.setItem(STORAGE_KEYS.DRIVER_TOKEN, 'mock_token_' + Date.now());
-      await AsyncStorage.setItem(STORAGE_KEYS.DRIVER_DATA, JSON.stringify(mockDriver));
-
-      setDriver(mockDriver);
+      setDriver(driverProfile);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'خطا در ورود';
       setError(errorMessage);
@@ -129,8 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       setIsLoading(true);
-      await AsyncStorage.removeItem(STORAGE_KEYS.DRIVER_TOKEN);
-      await AsyncStorage.removeItem(STORAGE_KEYS.DRIVER_DATA);
+      await AuthService.logout();
       setDriver(null);
       setError(null);
     } catch (err) {
@@ -165,6 +177,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         driver,
         isLoading,
         isAuthenticated: !!driver,
+        smsCodeKey,
+        checkAccount,
         login,
         loginWithBiometric,
         logout,

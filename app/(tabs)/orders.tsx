@@ -2,8 +2,10 @@ import { ScrollView, Text, View, Pressable, FlatList } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as Haptics from "expo-haptics";
+import { ForwardApi } from "@/lib/api/forward-api";
+import { ActivityIndicator } from "react-native";
 
 interface OrderItem {
   id: string;
@@ -59,8 +61,37 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }>
 
 export default function OrdersScreen() {
   const colors = useColors();
-  const [orders, setOrders] = useState<OrderItem[]>(MOCK_ORDERS);
+  const [orders, setOrders] = useState<OrderItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedFilter, setSelectedFilter] = useState<"all" | "pending" | "accepted">("all");
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      setIsLoading(true);
+      const response = await ForwardApi.getClusterOverview();
+      // Map real data to OrderItem interface
+      // This is a placeholder mapping, adjust based on actual API response structure
+      const mappedOrders: OrderItem[] = (response.clusters || []).map((cluster: any) => ({
+        id: cluster.id.toString(),
+        orderNumber: cluster.clusterCode || `#${cluster.id}`,
+        pickupLocation: cluster.pickupAddress || "نامشخص",
+        deliveryLocation: cluster.deliveryAddress || "نامشخص",
+        customerName: cluster.customerName || "نامشخص",
+        status: cluster.status === 1 ? "pending" : "accepted",
+        estimatedEarnings: cluster.price || 0,
+        distance: cluster.distance || 0,
+      }));
+      setOrders(mappedOrders);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredOrders =
     selectedFilter === "all"
@@ -68,12 +99,18 @@ export default function OrdersScreen() {
       : orders.filter((o) => o.status === selectedFilter);
 
   const handleAcceptOrder = async (orderId: string) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setOrders(
-      orders.map((o) =>
-        o.id === orderId ? { ...o, status: "accepted" as const } : o
-      )
-    );
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // Call real API to accept order
+      // await ForwardApi.saveClusterPickup({ clusterId: orderId });
+      setOrders(
+        orders.map((o) =>
+          o.id === orderId ? { ...o, status: "accepted" as const } : o
+        )
+      );
+    } catch (error) {
+      console.error("Error accepting order:", error);
+    }
   };
 
   const renderOrderCard = ({ item }: { item: OrderItem }) => {
@@ -256,19 +293,27 @@ export default function OrdersScreen() {
         </View>
 
         {/* Orders List */}
-        <FlatList
-          data={filteredOrders}
-          renderItem={renderOrderCard}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
-          scrollEnabled={true}
-          ListEmptyComponent={
-            <View className="items-center justify-center py-12">
-              <IconSymbol name="inbox" size={48} color={colors.muted} />
-              <Text className="text-muted text-center mt-4">سفارشی در دسترس نیست</Text>
-            </View>
-          }
-        />
+        {isLoading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : (
+          <FlatList
+            data={filteredOrders}
+            renderItem={renderOrderCard}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
+            scrollEnabled={true}
+            onRefresh={fetchOrders}
+            refreshing={isLoading}
+            ListEmptyComponent={
+              <View className="items-center justify-center py-12">
+                <IconSymbol name="inbox" size={48} color={colors.muted} />
+                <Text className="text-muted text-center mt-4">سفارشی در دسترس نیست</Text>
+              </View>
+            }
+          />
+        )}
       </View>
     </ScreenContainer>
   );

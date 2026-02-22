@@ -2,21 +2,49 @@ import { ScrollView, Text, View, TouchableOpacity, Pressable } from "react-nativ
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as Haptics from "expo-haptics";
+import { useAuthContext } from "@/lib/auth-provider";
+import { ForwardApi } from "@/lib/api/forward-api";
 
 export default function HomeScreen() {
   const colors = useColors();
+  const { driver } = useAuthContext();
   const [shiftActive, setShiftActive] = useState(false);
+  const [stats, setStats] = useState({ deliveries: 0, earnings: 0, distance: 0 });
+
+  useEffect(() => {
+    fetchState();
+  }, []);
+
+  const fetchState = async () => {
+    try {
+      const state = await ForwardApi.getState();
+      setShiftActive(state.isOnline || false);
+      // Update other stats if available in state
+    } catch (error) {
+      console.error("Error fetching state:", error);
+    }
+  };
 
   const handleStartShift = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setShiftActive(true);
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // await ForwardApi.updateStatus({ online: true });
+      setShiftActive(true);
+    } catch (error) {
+      console.error("Error starting shift:", error);
+    }
   };
 
   const handleEndShift = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setShiftActive(false);
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      // await ForwardApi.updateStatus({ online: false });
+      setShiftActive(false);
+    } catch (error) {
+      console.error("Error ending shift:", error);
+    }
   };
 
   return (
@@ -24,7 +52,7 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="bg-background">
         {/* Header */}
         <View className="bg-primary px-6 pt-6 pb-8">
-          <Text className="text-white text-3xl font-bold mb-2">سلام، محمد</Text>
+          <Text className="text-white text-3xl font-bold mb-2">سلام، {driver?.firstName || 'راننده'}</Text>
           <Text className="text-blue-100">امروز یک روز خوب برای تحویل است!</Text>
         </View>
 
@@ -56,11 +84,11 @@ export default function HomeScreen() {
                 <View className="flex-row justify-between">
                   <View>
                     <Text className="text-muted text-sm mb-1">سفارش‌های تحویل شده</Text>
-                    <Text className="text-2xl font-bold text-foreground">8</Text>
+                    <Text className="text-2xl font-bold text-foreground">{stats.deliveries}</Text>
                   </View>
                   <View>
                     <Text className="text-muted text-sm mb-1">درآمد امروز</Text>
-                    <Text className="text-2xl font-bold text-success">۲۴۰ هزار</Text>
+                    <Text className="text-2xl font-bold text-success">{stats.earnings.toLocaleString()}</Text>
                   </View>
                 </View>
                 <Pressable
@@ -117,7 +145,7 @@ export default function HomeScreen() {
                 style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
               >
                 <IconSymbol name="star.fill" size={24} color={colors.warning} />
-                <Text className="text-2xl font-bold text-foreground mt-2">۴.۸</Text>
+                <Text className="text-2xl font-bold text-foreground mt-2">{driver?.rating || '۵.۰'}</Text>
                 <Text className="text-xs text-muted mt-1">امتیاز</Text>
               </View>
             </View>

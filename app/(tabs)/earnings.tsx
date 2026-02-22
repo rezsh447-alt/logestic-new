@@ -2,7 +2,9 @@ import { ScrollView, Text, View, Pressable, FlatList } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { ForwardApi } from "@/lib/api/forward-api";
+import { ActivityIndicator } from "react-native";
 
 interface EarningRecord {
   id: string;
@@ -51,11 +53,38 @@ const MOCK_EARNINGS: EarningRecord[] = [
 export default function EarningsScreen() {
   const colors = useColors();
   const [period, setPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
+  const [earnings, setEarnings] = useState<EarningRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const totalEarnings = MOCK_EARNINGS.reduce((sum, e) => sum + e.amount, 0);
-  const totalDeliveries = MOCK_EARNINGS.reduce((sum, e) => sum + e.deliveries, 0);
-  const totalDistance = MOCK_EARNINGS.reduce((sum, e) => sum + e.distance, 0);
-  const averagePerDelivery = Math.round(totalEarnings / totalDeliveries);
+  useEffect(() => {
+    fetchEarnings();
+  }, []);
+
+  const fetchEarnings = async () => {
+    try {
+      setIsLoading(true);
+      const response = await ForwardApi.getSalaryList();
+      // Map real data to EarningRecord interface
+      const mappedEarnings: EarningRecord[] = (response.items || []).map((item: any) => ({
+        id: item.id.toString(),
+        date: item.datePersian || item.date,
+        amount: item.amount || 0,
+        deliveries: item.deliveryCount || 0,
+        distance: item.distance || 0,
+        time: item.duration || 0,
+      }));
+      setEarnings(mappedEarnings);
+    } catch (error) {
+      console.error("Error fetching earnings:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const totalEarnings = earnings.reduce((sum, e) => sum + e.amount, 0);
+  const totalDeliveries = earnings.reduce((sum, e) => sum + e.deliveries, 0);
+  const totalDistance = earnings.reduce((sum, e) => sum + e.distance, 0);
+  const averagePerDelivery = totalDeliveries > 0 ? Math.round(totalEarnings / totalDeliveries) : 0;
 
   const renderEarningCard = ({ item }: { item: EarningRecord }) => (
     <Pressable
@@ -246,13 +275,21 @@ export default function EarningsScreen() {
         </View>
 
         {/* Earnings History */}
-        <FlatList
-          data={MOCK_EARNINGS}
-          renderItem={renderEarningCard}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
-          scrollEnabled={true}
-        />
+        {isLoading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : (
+          <FlatList
+            data={earnings}
+            renderItem={renderEarningCard}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
+            scrollEnabled={true}
+            onRefresh={fetchEarnings}
+            refreshing={isLoading}
+          />
+        )}
       </View>
     </ScreenContainer>
   );
