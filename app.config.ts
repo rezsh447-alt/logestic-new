@@ -126,7 +126,7 @@ const config: ExpoConfig = {
       projectId: "49d91523-991f-4f2c-85e2-f3057fb12e86",
     },
   },
-  owner: "rezsh447-alt",
+  owner: "reza717",
   experiments: {
     typedRoutes: true,
     reactCompiler: true,
