@@ -11,7 +11,7 @@ import type { RelativePathString } from "expo-router";
 export default function LoginScreen() {
   const colors = useColors();
   const router = useRouter();
-  const { checkAccount, login, isLoading, error } = useAuthContext();
+  const { checkAccount, login, isBusy, error } = useAuthContext();
 
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -24,18 +24,18 @@ export default function LoginScreen() {
     // Validate phone number
     if (!phoneNumber || phoneNumber.length < 10) {
       setLocalError("لطفا شماره تماس معتبر وارد کنید");
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
       return;
     }
 
     try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
       await checkAccount(phoneNumber);
       setStep("otp");
     } catch (err: any) {
       const msg = err?.message || "خطا در ارسال کد تایید";
       setLocalError(msg);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
     }
   };
 
@@ -45,18 +45,18 @@ export default function LoginScreen() {
     // Validate OTP
     if (!otp || otp.length < 4 || otp.length > 6) {
       setLocalError("لطفا کد تایید را وارد کنید");
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
       return;
     }
 
     try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
       await login(phoneNumber, otp);
       router.replace("/(tabs)" as RelativePathString);
     } catch (err: any) {
       const msg = err?.message || "خطا در ورود";
       setLocalError(msg);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
     }
   };
 
@@ -99,7 +99,7 @@ export default function LoginScreen() {
                     value={phoneNumber}
                     onChangeText={setPhoneNumber}
                     keyboardType="phone-pad"
-                    editable={!isLoading}
+                    editable={!isBusy}
                     className="flex-1 ml-3 text-foreground text-base"
                     style={{ color: colors.foreground }}
                   />
@@ -128,16 +128,16 @@ export default function LoginScreen() {
               {/* Submit Button */}
               <Pressable
                 onPress={handlePhoneSubmit}
-                disabled={isLoading || !phoneNumber}
+                disabled={isBusy || !phoneNumber}
                 style={({ pressed }) => [
                   {
                     backgroundColor: colors.primary,
-                    opacity: pressed && !isLoading ? 0.8 : isLoading || !phoneNumber ? 0.6 : 1,
+                    opacity: pressed && !isBusy ? 0.8 : isBusy || !phoneNumber ? 0.6 : 1,
                   },
                 ]}
                 className="py-3 rounded-lg items-center justify-center"
               >
-                {isLoading ? (
+                {isBusy ? (
                   <ActivityIndicator color="white" />
                 ) : (
                   <Text className="text-white font-semibold">ادامه</Text>
@@ -175,14 +175,14 @@ export default function LoginScreen() {
                 >
                   <IconSymbol name="lock.fill" size={20} color={colors.primary} />
                   <TextInput
-                    placeholder="۰۰۰۰۰۰"
+                    placeholder="۰۰۰۰۰"
                     placeholderTextColor={colors.muted}
                     value={otp}
                     onChangeText={setOtp}
                     keyboardType="number-pad"
                     maxLength={6}
                     autoComplete="sms-otp"
-                    editable={!isLoading}
+                    editable={!isBusy}
                     className="flex-1 ml-3 text-foreground text-base tracking-widest"
                     style={{ color: colors.foreground }}
                   />
@@ -194,25 +194,27 @@ export default function LoginScreen() {
 
               {/* Resend Code */}
               <View className="items-center">
-                <Text className="text-muted text-sm">
-                  کد دریافت نکردید؟{" "}
-                  <Text className="text-primary font-semibold">دوباره ارسال کنید</Text>
-                </Text>
+                <Pressable onPress={handlePhoneSubmit} disabled={isBusy}>
+                  <Text className="text-muted text-sm">
+                    کد دریافت نکردید؟{" "}
+                    <Text className="text-primary font-semibold">دوباره ارسال کنید</Text>
+                  </Text>
+                </Pressable>
               </View>
 
               {/* Submit Button */}
               <Pressable
                 onPress={handleOtpSubmit}
-                disabled={isLoading || otp.length < 4 || otp.length > 6}
+                disabled={isBusy || otp.length < 4 || otp.length > 6}
                 style={({ pressed }) => [
                   {
                     backgroundColor: colors.primary,
-                    opacity: pressed && !isLoading ? 0.8 : isLoading || otp.length < 4 || otp.length > 6 ? 0.6 : 1,
+                    opacity: pressed && !isBusy ? 0.8 : isBusy || otp.length < 4 || otp.length > 6 ? 0.6 : 1,
                   },
                 ]}
                 className="py-3 rounded-lg items-center justify-center"
               >
-                {isLoading ? (
+                {isBusy ? (
                   <ActivityIndicator color="white" />
                 ) : (
                   <Text className="text-white font-semibold">ورود</Text>

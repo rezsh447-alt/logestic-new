@@ -10,6 +10,8 @@ interface AuthContextType {
   checkAccount: (phoneNumber: string) => Promise<void>;
   driver: DriverProfile | null;
   isLoading: boolean;
+  isInitializing: boolean;
+  isBusy: boolean;
   isAuthenticated: boolean;
   login: (phoneNumber: string, otp: string) => Promise<void>;
   loginWithBiometric: () => Promise<void>;
@@ -22,7 +24,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [driver, setDriver] = useState<DriverProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [smsCodeKey, setSmsCodeKey] = useState<string | null>(null);
 
@@ -30,7 +33,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        setIsLoading(true);
         const storedToken = await AsyncStorage.getItem(STORAGE_KEYS.DRIVER_TOKEN);
         const storedDriver = await AsyncStorage.getItem(STORAGE_KEYS.DRIVER_DATA);
 
@@ -40,9 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (err) {
         console.error('Auth initialization error:', err);
-        setError('خطا در بارگذاری اطلاعات');
       } finally {
-        setIsLoading(false);
+        setIsInitializing(false);
       }
     };
 
@@ -51,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAccount = async (phoneNumber: string) => {
     try {
-      setIsLoading(true);
+      setIsBusy(true);
       setError(null);
       const response = await AuthService.checkAccount(phoneNumber);
       setSmsCodeKey(response.smsCodeKey);
@@ -60,13 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(errorMessage);
       throw err;
     } finally {
-      setIsLoading(false);
+      setIsBusy(false);
     }
   };
 
   const login = async (phoneNumber: string, otp: string) => {
     try {
-      setIsLoading(true);
+      setIsBusy(true);
       setError(null);
 
       const { user } = await AuthService.login(phoneNumber, otp);
@@ -113,16 +114,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(errorMessage);
       throw err;
     } finally {
-      setIsLoading(false);
+      setIsBusy(false);
     }
   };
 
   const loginWithBiometric = async () => {
     try {
-      setIsLoading(true);
+      setIsBusy(true);
       setError(null);
 
-      // Simulate biometric authentication
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const storedDriver = await AsyncStorage.getItem(STORAGE_KEYS.DRIVER_DATA);
@@ -135,29 +135,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(errorMessage);
       throw err;
     } finally {
-      setIsLoading(false);
+      setIsBusy(false);
     }
   };
 
   const logout = async () => {
     try {
-      setIsLoading(true);
+      setIsBusy(true);
       await AuthService.logout();
       setDriver(null);
       setError(null);
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
-      setIsLoading(false);
+      setIsBusy(false);
     }
   };
 
   const updateProfile = async (updatedDriver: DriverProfile) => {
     try {
-      setIsLoading(true);
+      setIsBusy(true);
       setError(null);
 
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       await AsyncStorage.setItem(STORAGE_KEYS.DRIVER_DATA, JSON.stringify(updatedDriver));
@@ -167,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(errorMessage);
       throw err;
     } finally {
-      setIsLoading(false);
+      setIsBusy(false);
     }
   };
 
@@ -175,7 +174,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         driver,
-        isLoading,
+        isLoading: isInitializing,
+        isInitializing,
+        isBusy,
         isAuthenticated: !!driver,
         smsCodeKey,
         checkAccount,
@@ -200,6 +201,6 @@ export function useAuthContext() {
 }
 
 export function useAuth() {
-  const { driver, isAuthenticated, isLoading } = useAuthContext();
-  return { driver, isAuthenticated, isLoading };
+  const { driver, isAuthenticated, isLoading, isInitializing } = useAuthContext();
+  return { driver, isAuthenticated, isLoading, isInitializing };
 }
